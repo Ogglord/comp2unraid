@@ -1,0 +1,17 @@
+<Container>
+  <Name>immich-server</Name>
+  <Repository>ghcr.io/immich-app/immich-server:release</Repository>
+  <Network>bridge</Network>
+  <WebUI>http://[IP]:[PORT:2283]</WebUI>
+  <Category></Category>
+  <Overview></Overview>
+  <Description></Description>
+  <Author></Author>
+  <TemplateURL>https://raw.githubusercontent.com/username/repo/main/unraid/immich-server.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/username/repo/main/unraid/immich-server-logo.png</Icon>
+  <Image></Image>
+  <Config Name="WebUI" Target="2283" Default="2283" Mode="tcp" Description="WebUI Port" Type="Port" Display="always" Required="true" Mask="false">2283</Config>
+  <Config Name="HELLO" Target="HELLO" Default="WORLD" Mode="env" Description="" Type="Variable" Display="always" Required="false" Mask="false">WORLD</Config>
+  <Config Name="Volume /temp" Target="/usr/src/app/upload" Default="/temp" Mode="rw" Description="Volume /temp" Type="Path" Display="advanced" Required="true" Mask="false">/temp</Config>
+  <Config Name="Volume /etc/localtime" Target="/etc/localtime" Default="/etc/localtime" Mode="rw" Description="Volume /etc/localtime" Type="Path" Display="advanced" Required="true" Mask="false">/etc/localtime</Config>
+</Container>
