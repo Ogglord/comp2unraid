@@ -14,6 +14,7 @@ import (
 
 type UnraidTemplate struct {
 	XMLName     xml.Name `xml:"Container"`
+	Version     string   `xml:"version,attr"`
 	Name        string   `xml:"Name"`
 	Repository  string   `xml:"Repository"`
 	Network     string   `xml:"Network"`
@@ -49,33 +50,44 @@ func init() {
 
 	flag.BoolVar(&force, "force", false, "force overwrite of existing XML files")
 	flag.BoolVar(&verbose, "v", false, "verbose output")
-	flag.StringVar(&configFile, "c", "docker-compose.yml", "path to YAML configuration file")
+	
 }
 
 func main() {
 
 	// Parse flags
-	flag.Parse()
+    flag.Parse()
+
+    // Get the remaining arguments
+    args := flag.Args()
 
 	// Check if a command was provided
-	if flag.NArg() < 1 {
-		log.Fatal("no command provided")
-	}
+    if len(args) < 1 {
+		printHelp()
+		log.Fatal("Error: no command provided")
+    }
+
+    // Get the command
+    cmd := args[0]
 
 	// Check if a configuration file was provided
-	if configFile == "" {
-		log.Fatal("no configuration file provided. Use -c flag to specify a YAML file.")
-	}
+    var configFile string
+    if len(args) > 1 {
+        configFile = args[len(args)-1]
+    } else {
+        configFile = "docker-compose.yml"
+    }
 
 	// Check if the configuration file exists
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		log.Fatalf("configuration file %s does not exist", configFile)
+		log.Fatalf("Error: File not found: %s",configFile)
 	}
 
-	// Get the command
-	cmd := flag.Arg(0)
-
-	fmt.Println("Remaining args", flag.Args())
+	if len(args) > 1 {
+		fmt.Println("Remaining args", args[1:len(args)-1])
+	}else{
+		fmt.Println("Remaining args", args)
+	}
 
 	if force {
 		log.Println("WARNING: --force flag is enabled. This will overwrite any existing XML files.")
@@ -130,7 +142,13 @@ func processProject(verbose bool, configFile string, force bool) (*types.Project
 
 	// If any existing files were found and the force flag is not set, exit
 	if len(existingFiles) > 0 && !force {
-		return nil, fmt.Errorf("one or more XML files already exist. Use --force to overwrite")
+		if verbose {
+			log.Printf("The following XML files already exist:")
+			for file := range existingFiles {
+				log.Printf("- %s", file)
+			}
+		}
+		return nil, fmt.Errorf("Cannot proceed with exporting. Use --force to overwrite")
 	}
 
 	return project, nil
@@ -144,6 +162,7 @@ func convertCommand(verbose bool, configFile string, force bool) {
 
 	for _, service := range project.Services {
 		template := UnraidTemplate{
+			Version:     "2",
 			Name:        service.Name,
 			Repository:  service.Image,
 			Network:     getNetworkMode(&service),
@@ -152,14 +171,22 @@ func convertCommand(verbose bool, configFile string, force bool) {
 			WebUI:       getWebUI(&service),
 		}
 
+		
+
 		template.Configs = append(template.Configs, getConfigs(&service)...)
 		template.Configs = append(template.Configs, getEnvironmentConfigs(&service)...)
 		template.Configs = append(template.Configs, getVolumeConfigs(&service)...)
+
+
 
 		xmlBytes, err := xml.MarshalIndent(template, "", "  ")
 		if err != nil {
 			log.Fatalf("error marshaling template to XML: %v", err)
 		}
+
+		// Add the XML header
+		xmlHeader := []byte(`<?xml version="1.0"?>` + "\n")
+		xmlBytes = append(xmlHeader, xmlBytes...)
 
 		xmlFile, err := os.Create(fmt.Sprintf("%s.xml", service.Name))
 		if err != nil {
@@ -171,6 +198,8 @@ func convertCommand(verbose bool, configFile string, force bool) {
 		if err != nil {
 			log.Fatalf("error writing XML to file: %v", err)
 		}
+
+		fmt.Printf("XML file created: %s.xml\n", service.Name)
 	}
 }
 
@@ -260,15 +289,15 @@ func validateCommand(verbose bool, configFile string, force bool) {
 
 func printHelp() {
 	fmt.Println("Usage:")
-	fmt.Println("  comp2unraid [command] -c <config_file>")
+	fmt.Println("  comp2unraid [flags] [command] <config_file>")
 	fmt.Println("")
 	fmt.Println("Commands:")
 	fmt.Println("  convert   Convert the docker compose file to an unraid template")
 	fmt.Println("  validate  Validate the configuration file")
 	fmt.Println("  help      Display this help message")
 	fmt.Println("")
-	fmt.Println("Flags:")
-	fmt.Println("  -c        Path to the YAML configuration file")
+	fmt.Println("Flags:")	
 	fmt.Println("  -v        Enable verbose output")
 	fmt.Println("  --force   Force overwrite of existing XML files")
+	fmt.Println("Note: if <config_file> is omitted, it defaults to 'docker-compose.yml'")
 }
