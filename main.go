@@ -86,6 +86,9 @@ func (c *commandOptions) SetRepository(repository string) {
 	}
 }
 
+// getLocalPath returns the path to the local config file
+// or downloads the file if it's a URL
+// and returns the path to the downloaded file in temp folder
 func (options commandOptions) getLocalPath() (string, error) {
 	url := options.configFile
 	var file *os.File
