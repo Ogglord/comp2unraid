@@ -1,0 +1,42 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Go",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${fileDirname}",
+            "env": {},
+            "args": [
+                ""
+            ]
+        },
+        {
+            "name": "Go (remote file)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${fileDirname}",
+            "env": {},
+            "args": [
+                "-n",
+                "-v",
+                "https://raw.githubusercontent.com/Ogglord/docker-compose-homelab/main/social-apps/docker-compose.yml"
+            ]
+        },
+        {
+            "name": "Go (local file)",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${fileDirname}",
+            "env": {},
+            "args": [
+                "-n",
+                "-v",
+                "./examples/input/mariadb.yaml"
+            ]
+        }
+    ]
+}

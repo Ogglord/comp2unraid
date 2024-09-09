@@ -5,8 +5,11 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"io"
 	"log"
+	"net/http"
 	"os"
+	"strings"
 
 	"github.com/compose-spec/compose-go/v2/cli"
 	"github.com/compose-spec/compose-go/v2/types"
@@ -17,15 +20,20 @@ type UnraidTemplate struct {
 	Version     string   `xml:"version,attr"`
 	Name        string   `xml:"Name"`
 	Repository  string   `xml:"Repository"`
+	Registry    string   `xml:"Registry"`
 	Network     string   `xml:"Network"`
 	WebUI       string   `xml:"WebUI"`
 	Category    string   `xml:"Category"`
 	Overview    string   `xml:"Overview"`
-	Description string   `xml:"Description"`
+	Project     string   `xml:"Project"`
 	Author      string   `xml:"Author"`
+	Support     string   `xml:"Support"`
 	TemplateURL string   `xml:"TemplateURL"`
 	Icon        string   `xml:"Icon"`
-	Image       string   `xml:"Image"`
+	Shell       string   `xml:"Shell"`
+	Privileged  bool     `xml:"Privileged"`
+	ExtraParams string   `xml:"ExtraParams"`
+	PostArgs    string   `xml:"PostArgs"`
 	Configs     []Config `xml:"Config"`
 }
 
@@ -37,170 +45,265 @@ type Config struct {
 	Description string `xml:"Description,attr"`
 	Type        string `xml:"Type,attr"`
 	Display     string `xml:"Display,attr"`
-	Required    string `xml:"Required,attr"`
-	Mask        string `xml:"Mask,attr"`
+	Required    bool   `xml:"Required,attr"`
+	Mask        bool   `xml:"Mask,attr"`
 	Value       string `xml:",chardata"`
 }
 
-var configFile string
-var verbose bool
-var force bool
+var options commandOptions
+var tempFiles []string
 
 func init() {
 
-	flag.BoolVar(&force, "force", false, "force overwrite of existing XML files")
-	flag.BoolVar(&verbose, "v", false, "verbose output")
-	
+	flag.BoolVar(&options.force, "f", false, "overwrite existing XML files")
+	flag.BoolVar(&options.verbose, "v", false, "verbose output")
+	flag.BoolVar(&options.useEnv, "e", false, "use current environment variables and .env file if available")
+	flag.BoolVar(&options.dryRun, "n", false, "dry run - outputs xml to stdout without creating files")
+
+}
+
+type commandOptions struct {
+	verbose            bool
+	force              bool
+	useEnv             bool
+	dryRun             bool
+	configFile         string
+	templateRepository string
+	resourceRepository string
+	Author             string
+}
+
+func (c *commandOptions) SetRepository(repository string) {
+	if strings.Count(repository, "/") != 1 {
+		c.resourceRepository = repository
+		c.templateRepository = repository
+		c.Author = "comp2unraid"
+	} else {
+		// the repo is in github shorthand format
+		c.Author = strings.Split(repository, "/")[0]
+		c.resourceRepository = fmt.Sprintf("https://raw.githubusercontent.com/%s/main", repository)
+		c.templateRepository = fmt.Sprintf("https://github.com/%s", repository)
+	}
+}
+
+func (options commandOptions) getLocalPath() (string, error) {
+	url := options.configFile
+	var file *os.File
+	var err error
+
+	if strings.HasPrefix(url, "https://") {
+		resp, err := http.Get(url)
+		if err != nil {
+			return "", err
+		}
+		defer resp.Body.Close()
+
+		file, err = os.CreateTemp("", "comp2unraid-")
+		if err != nil {
+			return "", err
+		}
+
+		tempFiles = append(tempFiles, file.Name())
+
+		_, err = io.Copy(file, resp.Body)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		file, err = os.Open(url)
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+	}
+
+	return file.Name(), nil
+}
+
+func cleanUpTempFiles() {
+	for _, file := range tempFiles {
+		os.Remove(file)
+	}
 }
 
 func main() {
 
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "comp2unraid [flags] <config_file>\n")
+		fmt.Fprintf(os.Stderr, "Usage:\n")
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "<config_file> is the path to the configuration file ")
+		fmt.Fprintf(os.Stderr, "it may be a URL (https://...) or a local path\n")
+	}
+
 	// Parse flags
-    flag.Parse()
+	flag.Parse()
+	// Get the arguments
+	args := flag.Args()
 
-    // Get the remaining arguments
-    args := flag.Args()
-
-	// Check if a command was provided
-    if len(args) < 1 {
-		printHelp()
-		log.Fatal("Error: no command provided")
-    }
-
-    // Get the command
-    cmd := args[0]
-
-	// Check if a configuration file was provided
-    var configFile string
-    if len(args) > 1 {
-        configFile = args[len(args)-1]
-    } else {
-        configFile = "docker-compose.yml"
-    }
-
-	// Check if the configuration file exists
-	if _, err := os.Stat(configFile); os.IsNotExist(err) {
-		log.Fatalf("Error: File not found: %s",configFile)
+	// Check if at least one command was provided
+	if len(args) < 1 {
+		if options.verbose {
+			log.Printf("arguments: %v", args)
+			log.Printf("arguments: %v", os.Args)
+		}
+		flag.Usage()
+		os.Exit(1)
 	}
 
+	// Set the config file
+	options.configFile = args[0]
+	// Get the optional repository argument
+	repo := "Ogglord/comp2unraid"
 	if len(args) > 1 {
-		fmt.Println("Remaining args", args[1:len(args)-1])
-	}else{
-		fmt.Println("Remaining args", args)
+		repo = args[1]
 	}
-
-	if force {
-		log.Println("WARNING: --force flag is enabled. This will overwrite any existing XML files.")
-	} else {
-		log.Println("WARNING: --force flag is disabled. This will not overwrite any existing XML files.")
-	}
-
-	// Handle commands
-	switch cmd {
-	case "convert":
-		convertCommand(verbose, configFile, force)
-	case "validate":
-		validateCommand(verbose, configFile, force)
-	case "help":
-		printHelp()
-	default:
-		printHelp()
-		log.Fatalf("unknown command: %s", cmd)
-	}
+	options.SetRepository(repo)
+	defer cleanUpTempFiles()
+	convertCommand(options)
 
 }
 
-func processProject(verbose bool, configFile string, force bool) (*types.Project, error) {
-	if verbose {
-		log.Print("processing project")
-	}
-	ctx := context.Background()
-	// Create a new project options
-	options, err := cli.NewProjectOptions(
-		[]string{configFile},
-		cli.WithOsEnv,
-		cli.WithDotEnv,
-		cli.WithName("comp2unraid"))
-
-	// Create a new project
-	project, err := cli.ProjectFromOptions(ctx, options)
+func convertCommand(args commandOptions) {
+	project, err := parseYaml(args)
 	if err != nil {
-		return nil, err
+		log.Fatalf("error parsing YAML: %v", err)
 	}
 
-	// Get the services
-	services := project.Services
-
-	// Check if any of the XML files that will be created exist
-	existingFiles := make(map[string]bool)
-	for _, service := range services {
-		xmlFile := fmt.Sprintf("%s.xml", service.Name)
-		if _, err := os.Stat(xmlFile); err == nil {
-			existingFiles[xmlFile] = true
-		}
-	}
-
-	// If any existing files were found and the force flag is not set, exit
-	if len(existingFiles) > 0 && !force {
-		if verbose {
-			log.Printf("The following XML files already exist:")
-			for file := range existingFiles {
-				log.Printf("- %s", file)
+	if !args.dryRun && !args.force {
+		// Check if any of the XML files that will be created exist
+		existingFiles := make(map[string]bool)
+		for _, service := range project.Services {
+			xmlFile := fmt.Sprintf("%s.xml", service.Name)
+			if _, err := os.Stat(xmlFile); err == nil {
+				existingFiles[xmlFile] = true
 			}
 		}
-		return nil, fmt.Errorf("Cannot proceed with exporting. Use --force to overwrite")
-	}
 
-	return project, nil
-}
-
-func convertCommand(verbose bool, configFile string, force bool) {
-	project, err := processProject(verbose, configFile, force)
-	if err != nil {
-		log.Fatal(err)
+		// If any existing files were found and the force flag is not set, exit
+		if len(existingFiles) > 0 {
+			if args.verbose {
+				log.Printf("The following XML files already exist:")
+				for file := range existingFiles {
+					log.Printf("- %s", file)
+				}
+			}
+			log.Fatalf("unable to proceed with conversion. use -f to force overwrite existing xml files")
+		}
 	}
 
 	for _, service := range project.Services {
+
+		registry, err := getRegistryURL(service.Image)
+		if err != nil {
+			log.Fatalf("error in getRegistryURL(...): %v", err)
+		}
 		template := UnraidTemplate{
 			Version:     "2",
 			Name:        service.Name,
+			Category:    "Other:",
 			Repository:  service.Image,
+			Registry:    registry,
 			Network:     getNetworkMode(&service),
-			TemplateURL: fmt.Sprintf("https://raw.githubusercontent.com/username/repo/main/unraid/%s.xml", service.Name),
-			Icon:        fmt.Sprintf("https://raw.githubusercontent.com/username/repo/main/unraid/%s-logo.png", service.Name),
+			TemplateURL: fmt.Sprintf("%s/%s.xml", args.resourceRepository, service.Name),
+			Icon:        fmt.Sprintf("%s/icons/generic-logo.png", args.resourceRepository),
+			Support:     fmt.Sprintf("%s/issues/new/choose", args.templateRepository),
 			WebUI:       getWebUI(&service),
+			Shell:       "bash",
+			Overview:    "This template was created using comp2unraid<br>Convert docker compose templates to unraid templates<br>https://github.com/Ogglord/comp2unraid",
+			Author:      args.Author,
+			Project:     "",
 		}
-
-		
 
 		template.Configs = append(template.Configs, getConfigs(&service)...)
 		template.Configs = append(template.Configs, getEnvironmentConfigs(&service)...)
 		template.Configs = append(template.Configs, getVolumeConfigs(&service)...)
 
-
-
-		xmlBytes, err := xml.MarshalIndent(template, "", "  ")
-		if err != nil {
-			log.Fatalf("error marshaling template to XML: %v", err)
+		if args.dryRun {
+			err = template.writeTemplateToStdout()
+			if err != nil {
+				log.Fatalf("error printing XML: %v", err)
+			}
+		} else {
+			err = template.writeTemplateToDisk(fmt.Sprintf("%s.xml", service.Name))
+			if err != nil {
+				log.Fatalf("error writing XML to file: %v", err)
+			}
 		}
-
-		// Add the XML header
-		xmlHeader := []byte(`<?xml version="1.0"?>` + "\n")
-		xmlBytes = append(xmlHeader, xmlBytes...)
-
-		xmlFile, err := os.Create(fmt.Sprintf("%s.xml", service.Name))
-		if err != nil {
-			log.Fatalf("error creating XML file: %v", err)
-		}
-		defer xmlFile.Close()
-
-		_, err = xmlFile.Write(xmlBytes)
-		if err != nil {
-			log.Fatalf("error writing XML to file: %v", err)
-		}
-
-		fmt.Printf("XML file created: %s.xml\n", service.Name)
 	}
+}
+
+func parseYaml(args commandOptions) (*types.Project, error) {
+	if args.verbose {
+		log.Print("processing project")
+	}
+	ctx := context.Background()
+	// Create a new project options
+
+	localPath, err := args.getLocalPath()
+	if err != nil {
+		return nil, err
+	}
+	projOptions, err := cli.NewProjectOptions(
+		[]string{localPath},
+		cli.WithOsEnv,
+		cli.WithDotEnv,
+		cli.WithName("comp2unraid"))
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new project
+	project, err := cli.ProjectFromOptions(ctx, projOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return project, nil
+}
+
+func (template UnraidTemplate) writeTemplateToDisk(filename string) error {
+	xmlBytes, err := xml.MarshalIndent(template, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshaling template to XML: %v", err)
+	}
+
+	// Add the XML header
+	xmlHeader := []byte(`<?xml version="1.0"?>` + "\n")
+	xmlBytes = append(xmlHeader, xmlBytes...)
+
+	xmlFile, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("error creating XML file: %v", err)
+	}
+	defer xmlFile.Close()
+
+	_, err = xmlFile.Write(xmlBytes)
+	if err != nil {
+		return fmt.Errorf("error writing XML to file: %v", err)
+	}
+
+	fmt.Printf("XML file created: %s.xml\n", filename)
+	return nil
+}
+
+func (template UnraidTemplate) writeTemplateToStdout() error {
+	xmlBytes, err := xml.MarshalIndent(template, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error marshaling template to XML: %v", err)
+	}
+
+	// Add the XML header
+	xmlHeader := []byte(`<?xml version="1.0"?>` + "\n")
+	xmlBytes = append(xmlHeader, xmlBytes...)
+
+	_, err = os.Stdout.Write(xmlBytes)
+	if err != nil {
+		return fmt.Errorf("error writing XML to stdout: %v", err)
+	}
+
+	return nil
 }
 
 func getNetworkMode(service *types.ServiceConfig) string {
@@ -219,9 +322,13 @@ func getWebUI(service *types.ServiceConfig) string {
 }
 
 func getConfigs(service *types.ServiceConfig) []Config {
+
 	if len(service.Ports) == 0 {
+		// no ports published, skip this element
 		return []Config{}
 	}
+
+	// lets assume the first port published is the webui
 	var port = service.Ports[0].Published
 
 	return []Config{
@@ -233,26 +340,31 @@ func getConfigs(service *types.ServiceConfig) []Config {
 			Description: "WebUI Port",
 			Type:        "Port",
 			Display:     "always",
-			Required:    "true",
-			Mask:        "false",
+			Required:    true,
+			Mask:        false,
 			Value:       port,
 		},
 	}
 }
 
 func getEnvironmentConfigs(service *types.ServiceConfig) []Config {
+	//<Config Name="Variable: VPN_USER" Target="VPN_USER" Default="" Mode="" Description="Specify your VPN providers username."
+	//Type="Variable" Display="always" Required="true" Mask="true">lcuhiYvP8zyhlaC4+pmp</Config>
 	configs := make([]Config, 0)
 	for key, val := range service.Environment {
+		needsMask := strings.Contains(strings.ToUpper(key), "PWD") ||
+			strings.Contains(strings.ToUpper(key), "PASS") ||
+			strings.Contains(strings.ToUpper(key), "SECRET")
 		configs = append(configs, Config{
 			Name:        key,
 			Target:      key,
 			Default:     *val,
-			Mode:        "env",
-			Description: "",
+			Mode:        "",
+			Description: "Specify the value for env: " + key,
 			Type:        "Variable",
 			Display:     "always",
-			Required:    "false",
-			Mask:        "false",
+			Required:    true,
+			Mask:        needsMask,
 			Value:       *val,
 		})
 	}
@@ -265,39 +377,48 @@ func getVolumeConfigs(service *types.ServiceConfig) []Config {
 		configs = append(configs, Config{
 			Name:        fmt.Sprintf("Volume for %s", volume.Target),
 			Target:      volume.Target,
-			Default:     volume.Source,
+			Default:     ".",
 			Mode:        "rw",
-			Description: fmt.Sprintf("Default %s", volume.Source),
+			Description: fmt.Sprintf("E.g. /mnt/appdata/%s for config and /mnt/data/ for other volumes", service.Name),
 			Type:        "Path",
-			Display:     "advanced",
-			Required:    "true",
-			Mask:        "false",
-			Value:       volume.Source,
+			Display:     "always",
+			Required:    true,
+			Mask:        false,
+			Value:       ".",
 		})
 	}
 	return configs
 }
 
-func validateCommand(verbose bool, configFile string, force bool) {
-	_, err := processProject(verbose, configFile, force)
-	if err != nil {
-		log.Fatal(err)
+func getRegistryURL(image string) (string, error) {
+	// Get the image parts
+	// example quay.io/nextcloud/server -> https://quay.io/nextcloud/server/
+	imageParts := strings.SplitN(image, "/", 3)
+	var registry, repository, imageName string
+	if len(imageParts) == 2 {
+		registry = ""
+		repository = imageParts[0]
+		imageName = imageParts[1]
+	} else if len(imageParts) == 3 {
+		registry = imageParts[0]
+		repository = imageParts[1]
+		imageName = imageParts[2]
 	} else {
-		fmt.Println("OK")
+		return "", fmt.Errorf("invalid image name: %s", image)
 	}
-}
 
-func printHelp() {
-	fmt.Println("Usage:")
-	fmt.Println("  comp2unraid [flags] [command] <config_file>")
-	fmt.Println("")
-	fmt.Println("Commands:")
-	fmt.Println("  convert   Convert the docker compose file to an unraid template")
-	fmt.Println("  validate  Validate the configuration file")
-	fmt.Println("  help      Display this help message")
-	fmt.Println("")
-	fmt.Println("Flags:")	
-	fmt.Println("  -v        Enable verbose output")
-	fmt.Println("  --force   Force overwrite of existing XML files")
-	fmt.Println("Note: if <config_file> is omitted, it defaults to 'docker-compose.yml'")
+	if len(strings.Split(imageName, ":")) > 1 {
+		imageName = strings.Split(imageName, ":")[0]
+	}
+
+	switch registry {
+	case "quay.io":
+		return fmt.Sprintf("https://quay.io/repository/%s/%s", repository, imageName), nil
+	case "ghcr.io":
+		return fmt.Sprintf("https://github.com/%s/%s", repository, imageName), nil
+	case "docker.io":
+		return fmt.Sprintf("https://hub.docker.com/r/%s/%s", repository, imageName), nil
+	default:
+		return fmt.Sprintf("https://hub.docker.com/r/%s/%s", repository, imageName), nil
+	}
 }

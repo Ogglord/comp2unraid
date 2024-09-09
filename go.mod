@@ -17,5 +17,6 @@ require (
 	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.1.0 // indirect
+	gopkg.in/mcuadros/go-defaults.v1 v1.1.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

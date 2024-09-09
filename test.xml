@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>mariadb</Name>
+  <Repository>linuxserver/mariadb</Repository>
+  <Registry>https://hub.docker.com/r/linuxserver/mariadb</Registry>
+  <Network>bridge</Network>
+  <WebUI>http://[IP]:[PORT:3306]</WebUI>
+  <Category>Other:</Category>
+  <Overview>This template was created using comp2unraid&lt;br&gt;Convert docker compose templates to unraid templates&lt;br&gt;https://github.com/Ogglord/comp2unraid</Overview>
+  <Project></Project>
+  <Author>Ogglord</Author>
+  <Support>https://github.com/Ogglord/comp2unraid/issues/new/choose</Support>
+  <TemplateURL>https://raw.githubusercontent.com/Ogglord/comp2unraid/main/mariadb.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Ogglord/comp2unraid/main/icons/generic-logo.png</Icon>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <ExtraParams></ExtraParams>
+  <PostArgs></PostArgs>
+  <Config Name="WebUI" Target="3306" Default="3306" Mode="tcp" Description="WebUI Port" Type="Port" Display="always" Required="true" Mask="false">3306</Config>
+  <Config Name="PUID" Target="PUID" Default="1000" Mode="" Description="Specify the value for env: PUID" Type="Variable" Display="always" Required="true" Mask="false">1000</Config>
+  <Config Name="PGID" Target="PGID" Default="1000" Mode="" Description="Specify the value for env: PGID" Type="Variable" Display="always" Required="true" Mask="false">1000</Config>
+  <Config Name="MYSQL_ROOT_PASSWORD" Target="MYSQL_ROOT_PASSWORD" Default="ROOT_ACCESS_PASSWORD" Mode="" Description="Specify the value for env: MYSQL_ROOT_PASSWORD" Type="Variable" Display="always" Required="true" Mask="true">ROOT_ACCESS_PASSWORD</Config>
+  <Config Name="TZ" Target="TZ" Default="Europe/London" Mode="" Description="Specify the value for env: TZ" Type="Variable" Display="always" Required="true" Mask="false">Europe/London</Config>
+  <Config Name="Volume for /config" Target="/config" Default="." Mode="rw" Description="E.g. /mnt/appdata/mariadb for config and /mnt/data/ for other volumes" Type="Path" Display="always" Required="true" Mask="false">.</Config>
+</Container>

@@ -1,0 +1,14 @@
+services:
+  mariadb:
+    image: linuxserver/mariadb
+    container_name: mariadb
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - MYSQL_ROOT_PASSWORD=ROOT_ACCESS_PASSWORD
+      - TZ=Europe/London
+    volumes:
+      - /home/user/appdata/mariadb:/config
+    ports:
+      - 3306:3306
+    restart: unless-stopped
