@@ -19,6 +19,7 @@ import (
 
 // Set during build
 var Commit string
+var Branch string
 
 // Set manually
 var (
