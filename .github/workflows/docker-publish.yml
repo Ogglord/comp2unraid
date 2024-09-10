@@ -11,6 +11,10 @@ on:
       - main
       - release
       - "release/**"
+    paths-ignore:
+      - '.github/workflows/**'
+      - 'docs/**'
+      - 'README.md'
 
 env:
   # Use docker.io for Docker Hub if empty
