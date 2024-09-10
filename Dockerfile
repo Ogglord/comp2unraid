@@ -1,5 +1,8 @@
 # Use an official Go image as the base
-FROM golang:alpine
+FROM --platform=$BUILDPLATFORM golang:alpine
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 
 # Set the working directory to /app
 WORKDIR /app
@@ -16,7 +19,6 @@ COPY entrypoint.sh .
 
 # Build the application
 RUN go build -o comp2unraid main.go
-
 
 RUN chmod +x ./entrypoint.sh
 
