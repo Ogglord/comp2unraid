@@ -33,8 +33,11 @@ Note: if your docker-compose contains multiple services, you will have to split 
 
  - Install go v1.23.1
  - Clone this repo
- - ```go build```
+ - Compile binaries using ```make``` this will cross-compile to ./bin folder by default
  - ```./comp2unraid "https://raw.githubusercontent.com/user/r/docker-compose.yml"```
+
+ You may also build the docker image locally using ```make docker``` and run using ```docker run local/comp2unraid```
+
 
 
 

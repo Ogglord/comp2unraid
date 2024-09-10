@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"runtime/debug"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/cli"
@@ -20,15 +19,34 @@ import (
 // Set during build
 var Commit string
 var Branch string
+var Version = "1.0.0"
 
-// Set manually
-var (
-	version = "1.0.0"
-	build   = "(devel)"
-)
 var options commandLineOptions
 var tempFiles []string
 
+func init() {
+	if Commit == "" {
+		// If the Commit is not set during build, try to get it from git at init time
+		Commit = getLatestCommit()
+	}
+	if Branch == "" {
+		// If the Commit is not set during build, try to get it from git at init time
+		Branch = "unknown"
+	}
+}
+
+func getLatestCommit() string {
+	// Use the "git describe" command to get the latest Git tag.
+	// This command returns a string in the format "v1.0.0-123-gabcdef".
+	// We'll parse this string to get the tag name and the number of commits since the tag.
+	output, err := exec.Command("git", "rev-parse", "HEAD").Output()
+	if err != nil {
+		return "unknown"
+	}
+	r := strings.TrimSpace(string(output))
+
+	return r
+}
 func init() {
 	flag.BoolVar(&options.force, "f", false, "overwrite existing XML files")
 	flag.BoolVar(&options.verbose, "v", false, "verbose output")
@@ -38,9 +56,10 @@ func init() {
 	// modify the default usage message
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "comp2unraid [flags] <config_file>\n")
-		fmt.Fprintf(os.Stderr, "Version: %s\n", version)
-		if build != "(devel)" && build != "" {
-			fmt.Fprintf(os.Stderr, "Build: %s\n", build)
+		fmt.Fprintf(os.Stderr, "Version: %s\n", Version)
+
+		if Branch != "" {
+			fmt.Fprintf(os.Stderr, "Branch: %s\n", Branch)
 		}
 		if Commit != "" {
 			fmt.Fprintf(os.Stderr, "Commit: %s\n", Commit)
@@ -440,52 +459,4 @@ func getRegistryURL(image string) (string, error) {
 	default:
 		return fmt.Sprintf("https://hub.docker.com/r/%s/%s", repository, imageName), nil
 	}
-}
-
-func init() {
-	info, ok := debug.ReadBuildInfo()
-	if ok {
-		build = info.Main.Version
-		if build == "(devel)" {
-			// If the build version is "(devel)", get the latest Git tag
-			// and use it as the build version.
-			commit, found := getGitCommitFromEnv()
-			if !found {
-				build = getLatestGitTag()
-			} else {
-				build = commit
-			}
-
-		}
-	}
-}
-
-func getGitCommitFromEnv() (string, bool) {
-	return os.LookupEnv("GIT_COMMIT")
-
-}
-
-func getLatestGitTag() string {
-	// Use the "git describe" command to get the latest Git tag.
-	// This command returns a string in the format "v1.0.0-123-gabcdef".
-	// We'll parse this string to get the tag name and the number of commits since the tag.
-	output, err := exec.Command("git", "describe", "--tags", "--always").Output()
-	if err != nil {
-		return "unknown"
-	}
-	tag := strings.TrimSpace(string(output))
-	// Split the tag name into parts.
-	parts := strings.Split(tag, "-")
-	if len(parts) < 2 {
-		if tag == "" {
-			return "unknown"
-		}
-		return tag
-	}
-	// Get the tag name and the number of commits since the tag.
-	tagName := parts[0]
-	commits := parts[1]
-	// Increment the build version by appending the number of commits since the tag.
-	buildVersion := fmt.Sprintf("%s-%s", tagName, commits)
-	return buildVersion
 }
