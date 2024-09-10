@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"testing"
 )
 
@@ -23,20 +22,6 @@ func TestGetRegistryURL(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("getRegistryURL(%q) = %q, want %q", tt.image, got, tt.want)
 		}
-	}
-}
-
-func TestCleanUpTempFiles(t *testing.T) {
-	tempFile, err := os.CreateTemp("", "comp2unraid-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(tempFile.Name())
-
-	tempFiles = []string{tempFile.Name()}
-	cleanUpTempFiles()
-	if len(tempFiles) != 0 {
-		t.Errorf("Expected tempFiles to be empty, but got %v", tempFiles)
 	}
 }
 

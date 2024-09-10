@@ -9,11 +9,68 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/cli"
 	"github.com/compose-spec/compose-go/v2/types"
 )
+
+// Set during build
+var Commit string
+var Branch string
+var Version = "1.0.0"
+
+var options commandLineOptions
+var tempFiles []string
+
+func init() {
+	if Commit == "" {
+		// If the Commit is not set during build, try to get it from git at init time
+		Commit = getLatestCommit()
+	}
+	if Branch == "" {
+		// If the Commit is not set during build, try to get it from git at init time
+		Branch = "unknown"
+	}
+}
+
+func getLatestCommit() string {
+	// Use the "git describe" command to get the latest Git tag.
+	// This command returns a string in the format "v1.0.0-123-gabcdef".
+	// We'll parse this string to get the tag name and the number of commits since the tag.
+	output, err := exec.Command("git", "rev-parse", "HEAD").Output()
+	if err != nil {
+		return "unknown"
+	}
+	r := strings.TrimSpace(string(output))
+
+	return r
+}
+func init() {
+	flag.BoolVar(&options.force, "f", false, "overwrite existing XML files")
+	flag.BoolVar(&options.verbose, "v", false, "verbose output")
+	flag.BoolVar(&options.useEnv, "e", false, "use current environment variables and .env file if available")
+	flag.BoolVar(&options.dryRun, "n", false, "dry run - outputs xml to stdout without creating files")
+
+	// modify the default usage message
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "comp2unraid [flags] <config_file>\n")
+		fmt.Fprintf(os.Stderr, "Version: %s\n", Version)
+
+		if Branch != "" {
+			fmt.Fprintf(os.Stderr, "Branch: %s\n", Branch)
+		}
+		if Commit != "" {
+			fmt.Fprintf(os.Stderr, "Commit: %s\n", Commit)
+		}
+		fmt.Fprintf(os.Stderr, "\nUsage:\n")
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "<config_file> is the path to the configuration file ")
+		fmt.Fprintf(os.Stderr, "it may be a URL (https://...) or a local path\n")
+	}
+
+}
 
 type UnraidTemplate struct {
 	XMLName     xml.Name `xml:"Container"`
@@ -49,20 +106,7 @@ type Config struct {
 	Mask        bool   `xml:"Mask,attr"`
 	Value       string `xml:",chardata"`
 }
-
-var options commandOptions
-var tempFiles []string
-
-func init() {
-
-	flag.BoolVar(&options.force, "f", false, "overwrite existing XML files")
-	flag.BoolVar(&options.verbose, "v", false, "verbose output")
-	flag.BoolVar(&options.useEnv, "e", false, "use current environment variables and .env file if available")
-	flag.BoolVar(&options.dryRun, "n", false, "dry run - outputs xml to stdout without creating files")
-
-}
-
-type commandOptions struct {
+type commandLineOptions struct {
 	verbose            bool
 	force              bool
 	useEnv             bool
@@ -73,7 +117,7 @@ type commandOptions struct {
 	Author             string
 }
 
-func (c *commandOptions) SetRepository(repository string) {
+func (c *commandLineOptions) SetRepository(repository string) {
 	if strings.Count(repository, "/") != 1 {
 		c.resourceRepository = repository
 		c.templateRepository = repository
@@ -89,7 +133,7 @@ func (c *commandOptions) SetRepository(repository string) {
 // getLocalPath returns the path to the local config file
 // or downloads the file if it's a URL
 // and returns the path to the downloaded file in temp folder
-func (options commandOptions) getLocalPath() (string, error) {
+func (options commandLineOptions) getLocalPath() (string, error) {
 	url := options.configFile
 	var file *os.File
 	var err error
@@ -130,15 +174,6 @@ func cleanUpTempFiles() {
 }
 
 func main() {
-
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "comp2unraid [flags] <config_file>\n")
-		fmt.Fprintf(os.Stderr, "Usage:\n")
-		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "<config_file> is the path to the configuration file ")
-		fmt.Fprintf(os.Stderr, "it may be a URL (https://...) or a local path\n")
-	}
-
 	// Parse flags
 	flag.Parse()
 	// Get the arguments
@@ -167,7 +202,7 @@ func main() {
 
 }
 
-func convertCommand(args commandOptions) {
+func convertCommand(args commandLineOptions) {
 	project, err := parseYaml(args)
 	if err != nil {
 		log.Fatalf("error parsing YAML: %v", err)
@@ -236,7 +271,7 @@ func convertCommand(args commandOptions) {
 	}
 }
 
-func parseYaml(args commandOptions) (*types.Project, error) {
+func parseYaml(args commandLineOptions) (*types.Project, error) {
 	if args.verbose {
 		log.Print("processing project")
 	}
