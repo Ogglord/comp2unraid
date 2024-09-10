@@ -3,13 +3,13 @@ FROM --platform=$BUILDPLATFORM golang:alpine
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ARG GIT_COMMIT
-ARG GIT_REF
+ARG GIT_BRANCH
 ARG IMAGE_NAME
 ENV GIT_COMMIT=$GIT_COMMIT
 
 
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
-RUN echo "This is commit $GIT_COMMIT for ${IMAGE_NAME} $GIT_REF"
+RUN echo "This is commit:$GIT_COMMIT for ${IMAGE_NAME}/$GIT_BRANCH"
 # Set the working directory to /app
 WORKDIR /app
 
