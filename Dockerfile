@@ -3,11 +3,12 @@ FROM --platform=$BUILDPLATFORM golang:alpine
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ARG GIT_COMMIT
+ARG INPUT_GIT_COMMIT
 ENV GIT_COMMIT=$GIT_COMMIT
 ARG IMAGE_NAME
 
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
-RUN echo "This is commit '$GIT_COMMIT' for '$IMAGE_NAME'"
+RUN echo "This is commit '$GIT_COMMIT' for '$INPUT_IMAGE_NAME' $INPUT_GIT_COMMIT"
 # Set the working directory to /app
 WORKDIR /app
 
@@ -22,7 +23,7 @@ COPY . .
 COPY entrypoint.sh .
 
 # Build the application and inject the git commit
-RUN go build -ldflags="-X main.Commit=$GIT_COMMIT" -o comp2unraid main.go
+RUN go build -ldflags="-X main.Commit=${GIT_COMMIT:-nil}" -o comp2unraid main.go
 
 RUN chmod +x ./entrypoint.sh
 
