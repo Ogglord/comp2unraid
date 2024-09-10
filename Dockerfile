@@ -6,7 +6,7 @@ ARG GIT_COMMIT
 ENV GIT_COMMIT=$GIT_COMMIT
 
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
-
+RUN echo "This is commit $GIT_COMMIT"
 # Set the working directory to /app
 WORKDIR /app
 
