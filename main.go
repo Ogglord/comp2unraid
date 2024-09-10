@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"runtime/debug"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/cli"
@@ -130,9 +132,11 @@ func cleanUpTempFiles() {
 }
 
 func main() {
-
+	// modify the default usage message
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "comp2unraid [flags] <config_file>\n")
+		fmt.Fprintf(os.Stderr, "Version: %s\n", version)
+		fmt.Fprintf(os.Stderr, "Build: %s\n", build)
 		fmt.Fprintf(os.Stderr, "Usage:\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "<config_file> is the path to the configuration file ")
@@ -424,4 +428,48 @@ func getRegistryURL(image string) (string, error) {
 	default:
 		return fmt.Sprintf("https://hub.docker.com/r/%s/%s", repository, imageName), nil
 	}
+}
+
+var (
+	version = "1.0.0"
+	build   = "(devel)"
+)
+
+func printVersion() {
+	fmt.Printf("Version: %s\n", version)
+	fmt.Printf("Build: %s\n", build)
+}
+
+func init() {
+	info, ok := debug.ReadBuildInfo()
+	if ok {
+		build = info.Main.Version
+		if build == "(devel)" {
+			// If the build version is "(devel)", get the latest Git tag
+			// and use it as the build version.
+			build = getLatestGitTag()
+		}
+	}
+}
+
+func getLatestGitTag() string {
+	// Use the "git describe" command to get the latest Git tag.
+	// This command returns a string in the format "v1.0.0-123-gabcdef".
+	// We'll parse this string to get the tag name and the number of commits since the tag.
+	output, err := exec.Command("git", "describe", "--tags", "--always").Output()
+	if err != nil {
+		return "unknown"
+	}
+	tag := strings.TrimSpace(string(output))
+	// Split the tag name into parts.
+	parts := strings.Split(tag, "-")
+	if len(parts) < 2 {
+		return tag
+	}
+	// Get the tag name and the number of commits since the tag.
+	tagName := parts[0]
+	commits := parts[1]
+	// Increment the build version by appending the number of commits since the tag.
+	buildVersion := fmt.Sprintf("%s-%s", tagName, commits)
+	return buildVersion
 }
