@@ -1,13 +1,40 @@
+[![Docker](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml)
+
 # comp2unraid
 Convert docker compose templates to unraid template
 
+
 ## Usage
 
-You can use this either by using the docker image or by cloning the repo and running the binary.
+ - Have your docker-compose.yml ready, either published online https://raw.githubusercontent.com/user/r/docker-compose.yml or locally on your unraid machine
+ - SSH to your Unraid server or open a shell terminal in your browser
+ - Execute it without installing using docker run, download the binary or compile from source, whatever you prefer.
 
-### Using the docker image
 
-The docker image is available on [docker hub](https://hub.docker.com/r/ogglord/comp2unraid).
+### Run using docker
 
-You can use it by running the following command:
+Preview the xml first, using the -n (dry run) flag
+```bash
+docker run ghcr.io/ogglord/comp2unraid -n "https://raw.githubusercontent.com/user/r/docker-compose.yml"
+```
+Then; pipe the output to an xml file
+```bash
+docker run ghcr.io/ogglord/comp2unraid -n "https://raw.githubusercontent.com/user/r/docker-compose.yml" > my-template.xml
+```
+Note: if your docker-compose contains multiple services, you will have to split the xml manually, or run the binary, see below, which generates one xml file per service
+
+
+### Download binary
+
+ - Download the latest release from Github
+ - ```./comp2unraid "https://raw.githubusercontent.com/user/r/docker-compose.yml"```
+
+### Compile from source
+
+ - Install go v1.23.1
+ - Clone this repo
+ - ```go build```
+ - ```./comp2unraid "https://raw.githubusercontent.com/user/r/docker-compose.yml"```
+
+
 
