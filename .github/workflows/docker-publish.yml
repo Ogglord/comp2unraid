@@ -9,7 +9,7 @@ on:
   push:
     branches:
       - release
-      - "releases/**"
+      - "release/**"
 
 env:
   # Use docker.io for Docker Hub if empty
