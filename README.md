@@ -1,6 +1,8 @@
+[![Docker](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml)
+
 # comp2unraid
 Convert docker compose templates to unraid template
-[![Docker](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml)
+
 
 ## Usage
 
