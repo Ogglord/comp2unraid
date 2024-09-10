@@ -4,9 +4,10 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ARG GIT_COMMIT
 ENV GIT_COMMIT=$GIT_COMMIT
+ARG IMAGE_NAME
 
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
-RUN echo "This is commit $GIT_COMMIT"
+RUN echo "This is commit $GIT_COMMIT for $IMAGE_NAME"
 # Set the working directory to /app
 WORKDIR /app
 
