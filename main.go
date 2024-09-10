@@ -464,6 +464,9 @@ func getLatestGitTag() string {
 	// Split the tag name into parts.
 	parts := strings.Split(tag, "-")
 	if len(parts) < 2 {
+		if tag == "" {
+			return "unknown"
+		}
 		return tag
 	}
 	// Get the tag name and the number of commits since the tag.
