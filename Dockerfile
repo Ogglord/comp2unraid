@@ -2,6 +2,9 @@
 FROM --platform=$BUILDPLATFORM golang:alpine
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
+ARG GIT_COMMIT
+ENV GIT_COMMIT=$GIT_COMMIT
+
 RUN echo "I am running on $BUILDPLATFORM, building for $TARGETPLATFORM"
 
 # Set the working directory to /app
@@ -17,8 +20,8 @@ RUN go mod download
 COPY . .
 COPY entrypoint.sh .
 
-# Build the application
-RUN go build -o comp2unraid main.go
+# Build the application and inject the git commit
+RUN go build -ldflags="-X main.Commit=$GIT_COMMIT" -o comp2unraid main.go
 
 RUN chmod +x ./entrypoint.sh
 

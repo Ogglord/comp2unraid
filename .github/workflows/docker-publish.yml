@@ -21,6 +21,7 @@ env:
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
+  GIT_COMMIT: ${{ github.event.workflow_run.head_commit.id }}
 
 jobs:
   build:

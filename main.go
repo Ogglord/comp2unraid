@@ -17,6 +17,41 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
+// Set during build
+var Commit string
+
+// Set manually
+var (
+	version = "1.0.0"
+	build   = "(devel)"
+)
+var options commandLineOptions
+var tempFiles []string
+
+func init() {
+	flag.BoolVar(&options.force, "f", false, "overwrite existing XML files")
+	flag.BoolVar(&options.verbose, "v", false, "verbose output")
+	flag.BoolVar(&options.useEnv, "e", false, "use current environment variables and .env file if available")
+	flag.BoolVar(&options.dryRun, "n", false, "dry run - outputs xml to stdout without creating files")
+
+	// modify the default usage message
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "comp2unraid [flags] <config_file>\n")
+		fmt.Fprintf(os.Stderr, "Version: %s\n", version)
+		if build != "(devel)" && build != "" {
+			fmt.Fprintf(os.Stderr, "Build: %s\n", build)
+		}
+		if Commit != "" {
+			fmt.Fprintf(os.Stderr, "Commit: %s\n", Commit)
+		}
+		fmt.Fprintf(os.Stderr, "\nUsage:\n")
+		flag.PrintDefaults()
+		fmt.Fprintf(os.Stderr, "<config_file> is the path to the configuration file ")
+		fmt.Fprintf(os.Stderr, "it may be a URL (https://...) or a local path\n")
+	}
+
+}
+
 type UnraidTemplate struct {
 	XMLName     xml.Name `xml:"Container"`
 	Version     string   `xml:"version,attr"`
@@ -51,20 +86,7 @@ type Config struct {
 	Mask        bool   `xml:"Mask,attr"`
 	Value       string `xml:",chardata"`
 }
-
-var options commandOptions
-var tempFiles []string
-
-func init() {
-
-	flag.BoolVar(&options.force, "f", false, "overwrite existing XML files")
-	flag.BoolVar(&options.verbose, "v", false, "verbose output")
-	flag.BoolVar(&options.useEnv, "e", false, "use current environment variables and .env file if available")
-	flag.BoolVar(&options.dryRun, "n", false, "dry run - outputs xml to stdout without creating files")
-
-}
-
-type commandOptions struct {
+type commandLineOptions struct {
 	verbose            bool
 	force              bool
 	useEnv             bool
@@ -75,7 +97,7 @@ type commandOptions struct {
 	Author             string
 }
 
-func (c *commandOptions) SetRepository(repository string) {
+func (c *commandLineOptions) SetRepository(repository string) {
 	if strings.Count(repository, "/") != 1 {
 		c.resourceRepository = repository
 		c.templateRepository = repository
@@ -91,7 +113,7 @@ func (c *commandOptions) SetRepository(repository string) {
 // getLocalPath returns the path to the local config file
 // or downloads the file if it's a URL
 // and returns the path to the downloaded file in temp folder
-func (options commandOptions) getLocalPath() (string, error) {
+func (options commandLineOptions) getLocalPath() (string, error) {
 	url := options.configFile
 	var file *os.File
 	var err error
@@ -132,17 +154,6 @@ func cleanUpTempFiles() {
 }
 
 func main() {
-	// modify the default usage message
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "comp2unraid [flags] <config_file>\n")
-		fmt.Fprintf(os.Stderr, "Version: %s\n", version)
-		fmt.Fprintf(os.Stderr, "Build: %s\n", build)
-		fmt.Fprintf(os.Stderr, "Usage:\n")
-		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "<config_file> is the path to the configuration file ")
-		fmt.Fprintf(os.Stderr, "it may be a URL (https://...) or a local path\n")
-	}
-
 	// Parse flags
 	flag.Parse()
 	// Get the arguments
@@ -171,7 +182,7 @@ func main() {
 
 }
 
-func convertCommand(args commandOptions) {
+func convertCommand(args commandLineOptions) {
 	project, err := parseYaml(args)
 	if err != nil {
 		log.Fatalf("error parsing YAML: %v", err)
@@ -240,7 +251,7 @@ func convertCommand(args commandOptions) {
 	}
 }
 
-func parseYaml(args commandOptions) (*types.Project, error) {
+func parseYaml(args commandLineOptions) (*types.Project, error) {
 	if args.verbose {
 		log.Print("processing project")
 	}
@@ -430,16 +441,6 @@ func getRegistryURL(image string) (string, error) {
 	}
 }
 
-var (
-	version = "1.0.0"
-	build   = "(devel)"
-)
-
-func printVersion() {
-	fmt.Printf("Version: %s\n", version)
-	fmt.Printf("Build: %s\n", build)
-}
-
 func init() {
 	info, ok := debug.ReadBuildInfo()
 	if ok {
@@ -447,9 +448,20 @@ func init() {
 		if build == "(devel)" {
 			// If the build version is "(devel)", get the latest Git tag
 			// and use it as the build version.
-			build = getLatestGitTag()
+			commit, found := getGitCommitFromEnv()
+			if !found {
+				build = getLatestGitTag()
+			} else {
+				build = commit
+			}
+
 		}
 	}
+}
+
+func getGitCommitFromEnv() (string, bool) {
+	return os.LookupEnv("GIT_COMMIT")
+
 }
 
 func getLatestGitTag() string {
