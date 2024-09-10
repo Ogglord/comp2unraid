@@ -9,7 +9,7 @@
 *.dylib
 
 __debug*
-examples/
+examples
 **/*.xml
 *.xml
 bin/
