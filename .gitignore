@@ -10,8 +10,10 @@
 
 __debug*
 examples/
-output.xml
-test.xml
+**/*.xml
+*.xml
+bin/
+bin/*
 comp2unraid
 
 # Test binary, built with `go test -c`
