@@ -4,12 +4,12 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "buildbin",
+            "label": "build",
             "type": "go",
             "command": "build",
             "args": [
                 "-o",
-                "${workspaceFolder}/bin/${fileBasenameNoExtension}"
+                "${workspaceFolder}/bin/comp2unraid"
             ],
             "problemMatcher": [
                 "$goBuild"
@@ -20,7 +20,7 @@
             }
         },
         {
-            "label": "build_to_bin",
+            "label": "build_using_shell",
             "type": "shell",
             "command": "./build.sh",
             "group": {
