@@ -1,4 +1,4 @@
-[![Docker](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml)
+[![Docker](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Ogglord/comp2unraid/actions/workflows/docker-publish.yml) [![Go](https://github.com/Ogglord/comp2unraid/actions/workflows/go.yml/badge.svg)](https://github.com/Ogglord/comp2unraid/actions/workflows/go.yml)
 
 # comp2unraid
 Convert docker compose templates to unraid template
