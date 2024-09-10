@@ -8,8 +8,13 @@ name: Docker
 on:
   push:
     branches:
+      - main
       - release
       - "release/**"
+    paths-ignore:
+      - '.github/workflows/**'
+      - 'docs/**'
+      - 'README.md'
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -64,6 +69,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable=${{ contains(github.ref,'release') }}
+            type=raw,value=dev,enable={{is_default_branch}}
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action

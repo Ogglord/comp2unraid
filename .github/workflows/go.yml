@@ -6,6 +6,10 @@ name: Go
 on:
   push:
     branches: [ "main", "release" ]
+    paths-ignore:
+      - '.github/workflows/**'
+      - 'docs/**'
+      - 'README.md'
 
 jobs:
 
