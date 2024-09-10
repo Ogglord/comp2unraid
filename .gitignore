@@ -9,6 +9,10 @@
 *.dylib
 
 __debug*
+examples/
+output.xml
+test.xml
+comp2unraid
 
 # Test binary, built with `go test -c`
 *.test
