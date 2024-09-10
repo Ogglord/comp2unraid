@@ -6,7 +6,7 @@ Convert docker compose templates to unraid template
 
 ## Usage
 
- - Have your docker-compose.yml ready, either published online https://raw.githubusercontent.com/user/r/docker-compose.yml or locally on your unraid machine
+ - Have your docker-compose.yml ready, as an URL _https://...docker-compose.yml_ or a local file on your server
  - SSH to your Unraid server or open a shell terminal in your browser
  - Execute it without installing using docker run, download the binary or compile from source, whatever you prefer.
 
