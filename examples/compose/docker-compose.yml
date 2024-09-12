@@ -1,0 +1,60 @@
+name: immich
+# See https://immich.app/docs/features/hardware-transcoding for more info on using hardware transcoding.
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:release
+    devices:
+      - /dev/dri:/dev/dri
+    volumes:     
+      - /mnt/user/photos:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - TZ=Europe/Berlin
+      - IMMICH_VERSION=release
+      - DB_HOSTNAME=192.168.1.x
+      - DB_PASSWORD=postgres
+      - DB_USERNAME=postgres
+      - DB_DATABASE_NAME=immich
+      - DB_PORT=5432
+      - REDIS_HOSTNAME=192.168.1.x
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_USERNAME=
+      - MACHINE_LEARNING_HOST=0.0.0.0
+      - MACHINE_LEARNING_PORT=3003
+      - MACHINE_LEARNING_WORKERS=1
+      - IMMICH_HOST=0.0.0.0
+      - IMMICH_PORT=3001
+      - IMMICH_LOG_LEVEL=log
+      - IMMICH_TRUSTED_PROXIES=
+    ports:
+      - 2283:3001
+    restart: always
+    healthcheck:
+      disable: false
+
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    volumes:
+      - model-cache:/cache
+    environment:
+      - TZ=Europe/Berlin
+      - DB_HOSTNAME=192.168.1.x
+      - DB_PASSWORD=postgres
+      - DB_USERNAME=postgres
+      - DB_DATABASE_NAME=immich
+      - DB_PORT=5432
+      - REDIS_HOSTNAME=192.168.1.x
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_USERNAME=
+    restart: always
+    healthcheck:
+      disable: false
+
+volumes:
+  model-cache:

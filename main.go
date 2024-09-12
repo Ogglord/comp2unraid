@@ -72,51 +72,6 @@ func init() {
 
 }
 
-type UnraidTemplate struct {
-	XMLName     xml.Name `xml:"Container"`
-	Version     string   `xml:"version,attr"`
-	Name        string   `xml:"Name"`
-	Repository  string   `xml:"Repository"`
-	Registry    string   `xml:"Registry"`
-	Network     string   `xml:"Network"`
-	WebUI       string   `xml:"WebUI"`
-	Category    string   `xml:"Category"`
-	Overview    string   `xml:"Overview"`
-	Project     string   `xml:"Project"`
-	Author      string   `xml:"Author"`
-	Support     string   `xml:"Support"`
-	TemplateURL string   `xml:"TemplateURL"`
-	Icon        string   `xml:"Icon"`
-	Shell       string   `xml:"Shell"`
-	Privileged  bool     `xml:"Privileged"`
-	ExtraParams string   `xml:"ExtraParams"`
-	PostArgs    string   `xml:"PostArgs"`
-	Configs     []Config `xml:"Config"`
-}
-
-type Config struct {
-	Name        string `xml:"Name,attr"`
-	Target      string `xml:"Target,attr"`
-	Default     string `xml:"Default,attr"`
-	Mode        string `xml:"Mode,attr"`
-	Description string `xml:"Description,attr"`
-	Type        string `xml:"Type,attr"`
-	Display     string `xml:"Display,attr"`
-	Required    bool   `xml:"Required,attr"`
-	Mask        bool   `xml:"Mask,attr"`
-	Value       string `xml:",chardata"`
-}
-type commandLineOptions struct {
-	verbose            bool
-	force              bool
-	useEnv             bool
-	dryRun             bool
-	configFile         string
-	templateRepository string
-	resourceRepository string
-	Author             string
-}
-
 func (c *commandLineOptions) SetRepository(repository string) {
 	if strings.Count(repository, "/") != 1 {
 		c.resourceRepository = repository
@@ -193,10 +148,15 @@ func main() {
 	options.configFile = args[0]
 	// Get the optional repository argument
 	repo := "Ogglord/comp2unraid"
+	service := ""
 	if len(args) > 1 {
 		repo = args[1]
 	}
+	if len(args) > 2 {
+		service = args[2]
+	}
 	options.SetRepository(repo)
+	options.namedService = service
 	defer cleanUpTempFiles()
 	convertCommand(options)
 
@@ -212,6 +172,11 @@ func convertCommand(args commandLineOptions) {
 		// Check if any of the XML files that will be created exist
 		existingFiles := make(map[string]bool)
 		for _, service := range project.Services {
+			// Check if args.namedService is set, if so filter the services
+			if args.namedService != "" && service.Name != args.namedService {
+				continue
+			}
+
 			xmlFile := fmt.Sprintf("%s.xml", service.Name)
 			if _, err := os.Stat(xmlFile); err == nil {
 				existingFiles[xmlFile] = true
@@ -231,7 +196,9 @@ func convertCommand(args commandLineOptions) {
 	}
 
 	for _, service := range project.Services {
-
+		if args.namedService != "" && service.Name != args.namedService {
+			continue
+		}
 		registry, err := getRegistryURL(service.Image)
 		if err != nil {
 			log.Fatalf("error in getRegistryURL(...): %v", err)
@@ -256,6 +223,7 @@ func convertCommand(args commandLineOptions) {
 		template.Configs = append(template.Configs, getConfigs(&service)...)
 		template.Configs = append(template.Configs, getEnvironmentConfigs(&service)...)
 		template.Configs = append(template.Configs, getVolumeConfigs(&service)...)
+		template.Configs = append(template.Configs, getDeviceConfigs(&service)...)
 
 		if args.dryRun {
 			err = template.writeTemplateToStdout()
@@ -411,18 +379,48 @@ func getEnvironmentConfigs(service *types.ServiceConfig) []Config {
 
 func getVolumeConfigs(service *types.ServiceConfig) []Config {
 	configs := make([]Config, 0)
+
 	for _, volume := range service.Volumes {
+		hostValue := ""
+		// set the current host volume value if its a named volume, not a bind mount
+		if !strings.HasPrefix(volume.Source, "/") {
+			hostValue = volume.Source
+		}
+
 		configs = append(configs, Config{
 			Name:        fmt.Sprintf("Volume for %s", volume.Target),
 			Target:      volume.Target,
-			Default:     ".",
+			Default:     volume.Source,
 			Mode:        "rw",
 			Description: fmt.Sprintf("E.g. /mnt/appdata/%s for config and /mnt/data/ for other volumes", service.Name),
 			Type:        "Path",
 			Display:     "always",
 			Required:    true,
 			Mask:        false,
-			Value:       ".",
+			Value:       hostValue,
+		})
+	}
+	return configs
+}
+
+func getDeviceConfigs(service *types.ServiceConfig) []Config {
+	configs := make([]Config, 0)
+	for _, device := range service.Devices {
+		deviceNameHost := device
+		if strings.Contains(device, ":") {
+			deviceNameHost = strings.Split(device, ":")[0]
+		}
+		configs = append(configs, Config{
+			Name:        fmt.Sprintf("Device passthrough %s", deviceNameHost),
+			Target:      "",
+			Default:     device,
+			Mode:        "",
+			Description: "",
+			Type:        "Device",
+			Display:     "always",
+			Required:    false,
+			Mask:        false,
+			Value:       "",
 		})
 	}
 	return configs
