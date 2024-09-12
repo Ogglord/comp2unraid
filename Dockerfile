@@ -24,7 +24,7 @@ COPY . .
 COPY entrypoint.sh .
 
 # Build the application and inject the git commit
-RUN go build -o comp2unraid
+RUN go build  -ldflags "-X main.Commit=${GIT_COMMIT} -X main.Branch=${GIT_BRANCH}" -o comp2unraid
 
 RUN chmod +x ./entrypoint.sh
 
