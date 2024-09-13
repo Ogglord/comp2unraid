@@ -25,29 +25,6 @@ var options commandLineOptions
 var tempFiles []string
 
 func init() {
-	if Commit == "" {
-		// If the Commit is not set during build, try to get it from git at init time
-		Commit = getLatestCommit()
-	}
-	if Branch == "" {
-		// If the Commit is not set during build, try to get it from git at init time
-		Branch = "unknown"
-	}
-}
-
-func getLatestCommit() string {
-	// Use the "git describe" command to get the latest Git tag.
-	// This command returns a string in the format "v1.0.0-123-gabcdef".
-	// We'll parse this string to get the tag name and the number of commits since the tag.
-	output, err := exec.Command("git", "rev-parse", "HEAD").Output()
-	if err != nil {
-		return "unknown"
-	}
-	r := strings.TrimSpace(string(output))
-
-	return r
-}
-func init() {
 	flag.BoolVar(&options.force, "f", false, "overwrite existing XML files")
 	flag.BoolVar(&options.verbose, "v", false, "verbose output")
 	flag.BoolVar(&options.useEnv, "e", false, "use current environment variables and .env file if available")
