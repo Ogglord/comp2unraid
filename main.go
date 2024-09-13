@@ -9,37 +9,35 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 
+	"github.com/Ogglord/comp2unraid/config"
 	"github.com/compose-spec/compose-go/v2/cli"
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
-// Set during build
-var Commit string
-var Branch string
-var Version = "1.0.0"
-
-var options commandLineOptions
-var tempFiles []string
+var (
+	Version    = "1.0.0"
+	cliOptions commandLineOptions
+	tempFiles  []string
+)
 
 func init() {
-	flag.BoolVar(&options.force, "f", false, "overwrite existing XML files")
-	flag.BoolVar(&options.verbose, "v", false, "verbose output")
-	flag.BoolVar(&options.useEnv, "e", false, "use current environment variables and .env file if available")
-	flag.BoolVar(&options.dryRun, "n", false, "dry run - outputs xml to stdout without creating files")
+	flag.BoolVar(&cliOptions.force, "f", false, "overwrite existing XML files")
+	flag.BoolVar(&cliOptions.verbose, "v", false, "verbose output")
+	flag.BoolVar(&cliOptions.useEnv, "e", false, "use current environment variables and .env file if available")
+	flag.BoolVar(&cliOptions.dryRun, "n", false, "dry run - outputs xml to stdout without creating files")
 
 	// modify the default usage message
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "comp2unraid [flags] <config_file>\n")
 		fmt.Fprintf(os.Stderr, "Version: %s\n", Version)
 
-		if Branch != "" {
-			fmt.Fprintf(os.Stderr, "Branch: %s\n", Branch)
+		if config.Branch != "" {
+			fmt.Fprintf(os.Stderr, "Branch: %s\n", config.Branch)
 		}
-		if Commit != "" {
-			fmt.Fprintf(os.Stderr, "Commit: %s\n", Commit)
+		if config.Commit != "" {
+			fmt.Fprintf(os.Stderr, "Commit: %s\n", config.Commit)
 		}
 		fmt.Fprintf(os.Stderr, "\nUsage:\n")
 		flag.PrintDefaults()
@@ -65,8 +63,8 @@ func (c *commandLineOptions) SetRepository(repository string) {
 // getLocalPath returns the path to the local config file
 // or downloads the file if it's a URL
 // and returns the path to the downloaded file in temp folder
-func (options commandLineOptions) getLocalPath() (string, error) {
-	url := options.configFile
+func (c *commandLineOptions) getLocalPath() (string, error) {
+	url := c.configFile
 	var file *os.File
 	var err error
 
@@ -113,7 +111,7 @@ func main() {
 
 	// Check if at least one command was provided
 	if len(args) < 1 {
-		if options.verbose {
+		if cliOptions.verbose {
 			log.Printf("arguments: %v", args)
 			log.Printf("arguments: %v", os.Args)
 		}
@@ -122,7 +120,7 @@ func main() {
 	}
 
 	// Set the config file
-	options.configFile = args[0]
+	cliOptions.configFile = args[0]
 	// Get the optional repository argument
 	repo := "Ogglord/comp2unraid"
 	service := ""
@@ -132,10 +130,10 @@ func main() {
 	if len(args) > 2 {
 		service = args[2]
 	}
-	options.SetRepository(repo)
-	options.namedService = service
+	cliOptions.SetRepository(repo)
+	cliOptions.namedService = service
 	defer cleanUpTempFiles()
-	convertCommand(options)
+	convertCommand(cliOptions)
 
 }
 
@@ -221,7 +219,7 @@ func parseYaml(args commandLineOptions) (*types.Project, error) {
 		log.Print("processing project")
 	}
 	ctx := context.Background()
-	// Create a new project options
+	// Create a new project cliOptions
 
 	localPath, err := args.getLocalPath()
 	if err != nil {
